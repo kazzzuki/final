@@ -53,10 +53,12 @@
         name: BitLocker
         state: present
 
-    - name: Set up automated backups with Duplicity
+    - name: Install Duplicity for automated backups
       apt:
         name: duplicity
         state: present
+
+    - name: Set up automated backups with Duplicity
       cron:
         name: "Backup job"
         minute: "0"
