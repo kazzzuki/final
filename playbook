@@ -1,0 +1,85 @@
+---
+- name: TechSecure IT Solutions Security Setup
+  hosts: all
+  become: yes
+  vars:
+    vpn_users:
+      - { name: "user1", password: "password1" }
+      - { name: "user2", password: "password2" }
+
+  tasks:
+    - name: Install and configure firewall (pfSense)
+      shell: |
+        sudo apt-get update
+        sudo apt-get install -y pfsense
+        sudo pfctl -e
+        sudo pfctl -f /etc/pf.conf
+
+    - name: Install and configure Snort for IDPS
+      apt:
+        name: snort
+        state: present
+      notify:
+        - Restart snort
+
+    - name: Set up OpenVPN with MFA
+      shell: |
+        sudo apt-get install -y openvpn easy-rsa
+        for user in "{{ vpn_users }}"; do
+          adduser $user['name']
+          echo "$user['name']:$user['password']" | chpasswd
+        done
+
+    - name: Network Segmentation with VLANs
+      shell: |
+        sudo apt-get install -y vlan
+        sudo vconfig add eth0 10
+        sudo ip addr add 192.168.10.1/24 dev eth0.10
+
+    - name: Install ClamAV on Ubuntu Server
+      apt:
+        name: clamav
+        state: present
+      notify:
+        - Update ClamAV database
+
+    - name: Configure full-disk encryption on Ubuntu Server
+      shell: |
+        sudo apt-get install -y cryptsetup
+        sudo cryptsetup luksFormat /dev/sda1
+
+    - name: Enable BitLocker on Windows 10
+      win_feature:
+        name: BitLocker
+        state: present
+
+    - name: Set up automated backups with Duplicity
+      apt:
+        name: duplicity
+        state: present
+      cron:
+        name: "Backup job"
+        minute: "0"
+        hour: "2"
+        job: "duplicity /data file:///backup"
+
+    - name: Install and configure Nagios for monitoring
+      apt:
+        name: nagios3
+        state: present
+      notify:
+        - Start Nagios
+
+  handlers:
+    - name: Restart snort
+      service:
+        name: snort
+        state: restarted
+
+    - name: Update ClamAV database
+      command: freshclam
+
+    - name: Start Nagios
+      service:
+        name: nagios3
+        state: started
